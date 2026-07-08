@@ -65,6 +65,9 @@ async function runQuery(question) {
     });
 
     if (!res.ok) {
+      if (res.status === 503) {
+        throw new Error('the models are still warming up — wait a few seconds and try again');
+      }
       const body = await res.json().catch(() => ({}));
       throw new Error(body.detail ? JSON.stringify(body.detail) : `Request failed (${res.status})`);
     }

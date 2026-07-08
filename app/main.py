@@ -1,19 +1,16 @@
+cat > app/main.py << 'EOF'
 """
 main.py
 -------
 FastAPI application exposing the RAG codebase-documentation search assistant.
-
-Endpoints:
-  GET  /health        — liveness check
-  GET  /api/stats      — corpus stats (doc count, chunk count)
-  POST /api/ask         — ask a question, get an answer + source references
-  GET  /                — serves the static frontend
 """
 
 import time
+import threading
+import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
@@ -24,17 +21,33 @@ from app.retriever import hybrid_search
 from app.qa import AnswerEngine
 from app.config import DOCS_DIR
 
-_state = {"index": None, "engine": None, "ready": False}
+_state = {"index": None, "engine": None, "ready": False, "error": None}
+
+
+def _load_models():
+    try:
+        print("[startup] building hybrid search index...", flush=True)
+        index = SearchIndex().build()
+        print(f"[startup] index built: {len(index.chunks)} chunks", flush=True)
+
+        print("[startup] loading QA model...", flush=True)
+        engine = AnswerEngine()
+        print("[startup] QA model loaded", flush=True)
+
+        _state["index"] = index
+        _state["engine"] = engine
+        _state["ready"] = True
+        print("[startup] ready to serve requests", flush=True)
+    except Exception as e:
+        _state["error"] = str(e)
+        print("[startup] FAILED:", e, flush=True)
+        traceback.print_exc()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Build the hybrid index and load the QA model once at startup, not per-request.
-    index = SearchIndex().build()
-    engine = AnswerEngine()
-    _state["index"] = index
-    _state["engine"] = engine
-    _state["ready"] = True
+    thread = threading.Thread(target=_load_models, daemon=True)
+    thread.start()
     yield
     _state.clear()
 
@@ -72,6 +85,8 @@ class AskResponse(BaseModel):
 
 @app.get("/health")
 def health():
+    if _state["error"]:
+        return {"status": "error", "detail": _state["error"]}
     return {"status": "ok" if _state["ready"] else "starting"}
 
 
@@ -79,15 +94,21 @@ def health():
 def stats():
     index: SearchIndex = _state["index"]
     if not index:
-        return {"documents": 0, "chunks": 0}
+        return {"documents": len(list(DOCS_DIR.glob("*.md"))), "chunks": 0, "ready": False}
     return {
         "documents": len(list(DOCS_DIR.glob("*.md"))),
         "chunks": len(index.chunks),
+        "ready": True,
     }
 
 
 @app.post("/api/ask", response_model=AskResponse)
 def ask(payload: AskRequest):
+    if _state["error"]:
+        raise HTTPException(status_code=500, detail=f"Model failed to load: {_state['error']}")
+    if not _state["ready"]:
+        raise HTTPException(status_code=503, detail="Models are still warming up, try again in a few seconds.")
+
     start = time.time()
     index: SearchIndex = _state["index"]
     engine: AnswerEngine = _state["engine"]
@@ -110,3 +131,4 @@ app.mount("/assets", StaticFiles(directory="static"), name="assets")
 @app.get("/")
 def serve_index():
     return FileResponse("static/index.html")
+EOF
