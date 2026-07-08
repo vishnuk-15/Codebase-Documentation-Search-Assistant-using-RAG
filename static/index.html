@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Codebase Documentation Search Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/style.css">
+</head>
+<body>
+
+<div class="scanline"></div>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <span class="brand-glyph">&gt;_</span>
+      <span class="brand-name">docsearch</span>
+    </div>
+    <div class="stats" id="stats">
+      <span id="statDocs">–</span> docs indexed &nbsp;·&nbsp; <span id="statChunks">–</span> chunks &nbsp;·&nbsp; hybrid BM25 + SBERT
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="hero">
+    <p class="eyebrow">RAG search over technical documentation</p>
+    <h1>Ask the codebase<br>a question.</h1>
+    <p class="sub">Hybrid keyword + semantic retrieval finds the right doc chunk. An extractive
+      QA model pulls the exact answer span out of it, with the source shown like a grep hit.</p>
+  </section>
+
+  <section class="search-panel">
+    <form id="askForm" class="ask-row">
+      <span class="prompt-glyph">$</span>
+      <input
+        id="questionInput"
+        type="text"
+        autocomplete="off"
+        placeholder="how do refresh tokens work?"
+        maxlength="500"
+      >
+      <button type="submit" id="askBtn">
+        <span class="btn-label">search</span>
+        <span class="btn-key">↵</span>
+      </button>
+    </form>
+
+    <div class="suggestions" id="suggestions">
+      <button class="chip" data-q="How do I refresh an expired access token?">refresh tokens</button>
+      <button class="chip" data-q="What database does the API use?">database engine</button>
+      <button class="chip" data-q="How is the rate limit enforced?">rate limiting</button>
+      <button class="chip" data-q="How are deployments rolled back?">rollback strategy</button>
+      <button class="chip" data-q="How are webhook payloads verified?">webhook signing</button>
+    </div>
+  </section>
+
+  <section id="resultArea" class="result-area" hidden>
+
+    <div class="answer-card" id="answerCard">
+      <div class="answer-head">
+        <span class="answer-label">answer</span>
+        <div class="answer-meta">
+          <span class="meta-pill" id="confidencePill">confidence –</span>
+          <span class="meta-pill ghost" id="latencyPill">– ms</span>
+        </div>
+      </div>
+      <p class="answer-text" id="answerText"></p>
+    </div>
+
+    <div class="sources-head">
+      <span class="sources-label">sources</span>
+      <span class="sources-count" id="sourcesCount"></span>
+    </div>
+
+    <div class="sources-list" id="sourcesList"></div>
+
+  </section>
+
+  <section id="emptyState" class="empty-state">
+    <div class="empty-glyph">◌</div>
+    <p>Results will render here — try one of the example queries above.</p>
+  </section>
+
+  <section id="loadingState" class="loading-state" hidden>
+    <div class="loading-row"><span class="cursor-block"></span> retrieving relevant chunks…</div>
+  </section>
+
+  <section id="errorState" class="error-state" hidden>
+    <p id="errorText"></p>
+  </section>
+
+</main>
+
+<footer class="footer">
+  Built with LangChain · FAISS · BM25 · DistilBERT · FastAPI
+</footer>
+
+<script src="/assets/script.js"></script>
+</body>
+</html>
