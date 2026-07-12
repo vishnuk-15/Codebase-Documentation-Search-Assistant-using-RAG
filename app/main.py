@@ -1,4 +1,3 @@
-cat > app/main.py << 'EOF'
 """
 main.py
 -------
@@ -131,4 +130,3 @@ app.mount("/assets", StaticFiles(directory="static"), name="assets")
 @app.get("/")
 def serve_index():
     return FileResponse("static/index.html")
-EOF
